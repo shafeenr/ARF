@@ -34,7 +34,7 @@ void setup() {
   Serial.println(Phpoc.localIP());
   food.attach(9);
   feedAlert.setOutgoingServer("smtp.gmail.com", 587);
-  feedAlert.setOutgoingLogin("arf.at.ching", "failurewiththreees");
+  feedAlert.setOutgoingLogin("arf.at.ching", "bbb")";
   feedAlert.setFrom("arf.at.ching@gmail.com", "Automated Robotic Feeder");
   feedAlert.setTo("shafeenr@tuta.io", "Shafeen Rahman");
   feedAlert.setSubject("Mail from your Automated Robotic Feeder");
