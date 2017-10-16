@@ -20,9 +20,11 @@ unsigned long feedTimer = 0;
 boolean alreadyFedInLastMinute = false;
 // last second lazy programming because
 // no split function
-/*int trig = 12;
+int monmorn;
+int moneven;
+int trig = 12;
 int echo = 11;
-int dc = 19;*/
+int dc = 19;
 
 void setup() {
   feedTimer = millis();
@@ -38,9 +40,9 @@ void setup() {
   feedAlert.setFrom("arf.at.ching@gmail.com", "Automated Robotic Feeder");
   feedAlert.setTo("shafeenr@tuta.io", "Shafeen Rahman");
   feedAlert.setSubject("Mail from your Automated Robotic Feeder");
-/*  pinMode(trig, OUTPUT);
+  pinMode(trig, OUTPUT);
   pinMode(echo, INPUT);
-  pinMode(dc, OUTPUT);*/
+  pinMode(dc, OUTPUT);
 }
 
 void loop() {
@@ -94,6 +96,14 @@ void checkUserInput() {
     sshClient.print("\nUser name set to: ");
     sshClient.println(userName);
   }
+  if (userTimeInput.endsWith("monmorn")) {
+    monmorn = userTimeInput.substring(0, userTimeInput.indexOf("monmorn") - 1);
+    userTimeInput = "";
+  }
+  if (userTimeInput.endsWith("moneven")) {
+    moneven = userTimeInput.substring(0, userTimeInput.indexOf("moneven") - 1);
+    userTimeInput = "";
+  }
 }
 
 void feedPet() {
@@ -125,10 +135,19 @@ void emailAlert(String message, String timePerformed) {
 }
 
 void checkFeedTime() {
-  //
+  if (realTimeClock.dayofWeek() == 1) {
+    if (realTimeClock.date("Hi") == monmorn.toInt() || realTimeClock.date("Hi") == moneven.toInt()) {
+      feedPet();
+    }
+  }
+  if (realTimeClock.dayofWeek() == 2) {
+    if (realTimeClock.date("Hi") == tuemorn.toInt() || realTimeClock.date("Hi") == tueeven.toInt()) {
+      feedPet();
+    }
+  }
 }
 
-/*void waterLevels() {
+void waterLevels() {
   long t = 0, h = 0, hp = 0;
 
   digitalWrite(trig, LOW);
@@ -151,5 +170,4 @@ void checkFeedTime() {
     delay(1000);
     analogWrite(dc, 0);
   }
-}*/
-
+}
