@@ -1,4 +1,6 @@
-
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <Adafruit_MotorShield.h>
 #include <SPI.h>
 #include <Phpoc.h>
 #include <Servo.h>
@@ -6,43 +8,42 @@
 #define oneHourInMilliseconds 3600000
 #define oneMinuteInMilliseconds 60000
 
+// LCD with I2C backpack
+LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
+// SSH server
 PhpocServer sshServer(22);
-boolean clientConnection = false;
-String userTimeInput = "";
 PhpocClient sshClient;
-PhpocDateTime realTimeClock;
-unsigned long clientConnectionTimer = 0;
-PhpocEmail feedAlert;
-Servo food;
-String currentTime;
+boolean clientConnection = false;
+String userInput = "";
 String userName = "user";
+
+// Real time clock and related time variables
+PhpocDateTime realTimeClock;
 unsigned long feedTimer = 0;
+unsigned long clientConnectionTimer = 0;
 boolean alreadyFedInLastMinute = false;
-// last second lazy programming because
-// no split function
-int monmorn;
-int moneven;
-int trig = 12;
-int echo = 11;
-int dc = 19;
+
+// Email
+PhpocEmail feedAlert;
 
 void setup() {
   feedTimer = millis();
   clientConnectionTimer = millis();
-  Serial.begin(9600);
+
+  lcd.begin(16, 2);
+  lcd.backlight();
+  lcd.clear();
+
   Phpoc.begin(PF_LOG_SPI | PF_LOG_NET | PF_LOG_APP);
   sshServer.beginSSH("root", "toor");
-  Serial.print("SSH server at ");
-  Serial.println(Phpoc.localIP());
-  food.attach(9);
+  sshServerAddressDisplay();
+
   feedAlert.setOutgoingServer("smtp.gmail.com", 587);
-  feedAlert.setOutgoingLogin("arf.at.ching", "bbb")";
+  feedAlert.setOutgoingLogin("arf.at.ching", "failurewiththreees");
   feedAlert.setFrom("arf.at.ching@gmail.com", "Automated Robotic Feeder");
   feedAlert.setTo("shafeenr@tuta.io", "Shafeen Rahman");
   feedAlert.setSubject("Mail from your Automated Robotic Feeder");
-  pinMode(trig, OUTPUT);
-  pinMode(echo, INPUT);
-  pinMode(dc, OUTPUT);
 }
 
 void loop() {
@@ -50,14 +51,17 @@ void loop() {
   if (sshClient) {
     if (!clientConnection) {
       sshClient.flush();
-      Serial.println("New SSH client connection");
+      lcd.clear();
+      lcd.print("New SSH client");
+      delay(100);
       sshClient.println("Welcome to the Automated Robotic Feeder!");
       clientConnection = true;
+
     }
     if (sshClient.available() > 0) {
       char currentChar = sshClient.read();
       sshServer.write(currentChar);
-      userTimeInput.concat(currentChar);
+      userInput.concat(currentChar);
     }
   }
   if (millis() > clientConnectionTimer + oneHourInMilliseconds) {
@@ -68,58 +72,45 @@ void loop() {
     feedTimer = millis();
     alreadyFedInLastMinute = false;
   }
-  checkUserInput();
-  checkFeedTime();
+  sshServerAddressDisplay();
 }
 
 void checkUserInput() {
-  if (userTimeInput.endsWith("clear")) {
-    userTimeInput = "";
+  if (userInput.endsWith("clear")) {
+    userInput = "";
   }
-  if (userTimeInput.endsWith("feed")) {
+
+  if (userInput.endsWith("feed")) {
     sshClient.println("\nAttempting to feed pet.");
-    userTimeInput = "";
+    lcd.clear();
+    lcd.print("Feeding pet...");
+    userInput = "";
     feedPet();
+    delay(100);
+    sshServerAddressDisplay();
   }
-  if (userTimeInput.endsWith("time")) {
+
+  if (userInput.endsWith("time")) {
     sshClient.println("\n");
-    sshClient.println(realTimeClock.date("Y-m-d H:i:s"));
-    userTimeInput = "";
+    sshClient.println(realTimeClock.date("Y - m - d H: i: s"));
+    userInput = "";
   }
-  if (userTimeInput.endsWith("setname")) {
-    if (userTimeInput.charAt(userTimeInput.indexOf("setname") - 1) == ' ') {
-      userName = userTimeInput.substring(0, userTimeInput.indexOf("setname") - 1);
+
+  if (userInput.endsWith("setname")) {
+    if (userInput.charAt(userInput.indexOf("setname") - 1) == ' ') {
+      userName = userInput.substring(0, userInput.indexOf("setname") - 1);
     } else {
-      userName = userTimeInput.substring(0, userTimeInput.indexOf("setname"));
+      userName = userInput.substring(0, userInput.indexOf("setname"));
     }
-    userTimeInput = "";
+    userInput = "";
     sshClient.print("\nUser name set to: ");
     sshClient.println(userName);
-  }
-  if (userTimeInput.endsWith("monmorn")) {
-    monmorn = userTimeInput.substring(0, userTimeInput.indexOf("monmorn") - 1);
-    userTimeInput = "";
-  }
-  if (userTimeInput.endsWith("moneven")) {
-    moneven = userTimeInput.substring(0, userTimeInput.indexOf("moneven") - 1);
-    userTimeInput = "";
   }
 }
 
 void feedPet() {
-  currentTime = realTimeClock.date("Y-m-d H:i:s");
-  if (realTimeClock.hour() > 12 && !alreadyFedInLastMinute) {
-    for (int i = 0; i <= 180; i++) {
-      food.write(i);
-      delay(15);
-    }
-    for (int i = 180; i >= 0; i--) {
-      food.write(i);
-      delay(15);
-    }
-  }
   alreadyFedInLastMinute = true;
-  emailAlert("The Automated Robotic Feeder attempted to feed your pet.", currentTime);
+  emailAlert("The Automated Robotic Feeder attempted to feed your pet.", realTimeClock.date("Y - m - d H: i: s"));
 }
 
 void emailAlert(String message, String timePerformed) {
@@ -134,40 +125,10 @@ void emailAlert(String message, String timePerformed) {
   feedAlert.send();
 }
 
-void checkFeedTime() {
-  if (realTimeClock.dayofWeek() == 1) {
-    if (realTimeClock.date("Hi") == monmorn.toInt() || realTimeClock.date("Hi") == moneven.toInt()) {
-      feedPet();
-    }
-  }
-  if (realTimeClock.dayofWeek() == 2) {
-    if (realTimeClock.date("Hi") == tuemorn.toInt() || realTimeClock.date("Hi") == tueeven.toInt()) {
-      feedPet();
-    }
-  }
+void sshServerAddressDisplay() {
+  lcd.clear();
+  lcd.print(realTimeClock.date("Y - m - d H: i: s"));
+  lcd.setCursor(0, 1);
+  lcd.print(Phpoc.localIP());
 }
 
-void waterLevels() {
-  long t = 0, h = 0, hp = 0;
-
-  digitalWrite(trig, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trig, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trig, LOW);
-
-  t = pulseIn(echo, HIGH);
-
-  h = t / 58;
-
-  h = h - 6;
-  h = 50 - h;
-
-  hp = 2 * h;
-
-  if (hp < 100) {
-    analogWrite(dc, 255);
-    delay(1000);
-    analogWrite(dc, 0);
-  }
-}
