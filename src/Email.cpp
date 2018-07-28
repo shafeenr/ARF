@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <Phpoc.h>
+#include <PhpocEmail.h>
 
 PhpocEmail feedAlert;
 
